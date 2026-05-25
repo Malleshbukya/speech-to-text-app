@@ -4,11 +4,10 @@ const fs = require("fs")
 
 const { Deepgram } = require("@deepgram/sdk")
 
-const Transcription = require("../models/Transcription")
+const Transcription =
+  require("../models/Transcription")
 
 const router = express.Router()
-
-console.log(process.env.DEEPGRAM_API_KEY)
 
 const deepgram = new Deepgram(
   process.env.DEEPGRAM_API_KEY
@@ -17,59 +16,92 @@ const deepgram = new Deepgram(
 const storage = multer.diskStorage({
 
   destination: function (req, file, cb) {
+
     cb(null, "uploads/")
   },
 
   filename: function (req, file, cb) {
-    cb(null, Date.now() + "-" + file.originalname)
+
+    cb(
+      null,
+      Date.now() + "-" + file.originalname
+    )
   },
 
 })
 
 const upload = multer({ storage: storage })
 
-router.post("/", upload.single("audio"), async (req, res) => {
+router.post(
+  "/",
+  upload.single("audio"),
+  async (req, res) => {
 
-  try {
+    try {
 
-    const audioFile = fs.readFileSync(req.file.path)
+      const audioFile =
+        fs.readFileSync(req.file.path)
 
-    const response =
-      await deepgram.transcription.preRecorded(
-        {
-          buffer: audioFile,
-          mimetype: req.file.mimetype,
-        },
-        {
-          punctuate: true,
-        }
-      )
+      const response =
+        await deepgram.transcription.preRecorded(
+          {
+            buffer: audioFile,
+            mimetype: req.file.mimetype,
+          },
+          {
+            punctuate: true,
+          }
+        )
 
-    const transcription =
-      response.results.channels[0]
-      .alternatives[0]
-      .transcript
+      const transcription =
+        response.results.channels[0]
+        .alternatives[0]
+        .transcript
 
-    const savedData = await Transcription.create({
+      const savedData =
+        await Transcription.create({
 
-      fileName: req.file.filename,
+          fileName: req.file.filename,
 
-      transcription,
+          transcription,
 
-    })
+        })
 
-    res.json(savedData)
+      res.json(savedData)
 
-  } catch (error) {
+    } catch (error) {
 
-    console.log(error)
+      console.log(error)
 
-    res.status(500).json({
-      message: "Transcription failed",
-    })
-
+      res.status(500).json({
+        message: "Transcription failed",
+      })
+    }
   }
+)
 
-})
+router.get(
+  "/transcriptions",
+  async (req, res) => {
+
+    try {
+
+      const data =
+        await Transcription.find()
+          .sort({ createdAt: -1 })
+
+      res.json(data)
+
+    } catch (error) {
+
+      console.log(error)
+
+      res.status(500).json({
+        message:
+          "Failed to fetch transcriptions",
+      })
+    }
+  }
+)
 
 module.exports = router

@@ -4,15 +4,19 @@ function App() {
 
   return (
 
-    <div className="min-h-screen flex flex-col items-center justify-center bg-gray-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-200 flex items-center justify-center p-6">
 
-      <h1 className="text-5xl font-bold text-blue-600 mb-10">
+      <div className="w-full max-w-3xl">
 
-        Speech To Text App
+        <h1 className="text-5xl font-extrabold text-center text-blue-700 mb-10 drop-shadow-md">
 
-      </h1>
+          AI Speech To Text
 
-      <UploadAudio />
+        </h1>
+
+        <UploadAudio />
+
+      </div>
 
     </div>
   )

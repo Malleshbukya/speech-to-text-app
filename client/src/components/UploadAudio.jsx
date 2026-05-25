@@ -1,4 +1,9 @@
-import { useState, useRef } from "react"
+import {
+  useState,
+  useRef,
+  useEffect
+} from "react"
+
 import axios from "axios"
 
 function UploadAudio() {
@@ -7,6 +12,9 @@ function UploadAudio() {
 
   const [transcription, setTranscription] =
     useState("")
+
+  const [history, setHistory] =
+    useState([])
 
   const [loading, setLoading] =
     useState(false)
@@ -17,6 +25,29 @@ function UploadAudio() {
   const mediaRecorderRef = useRef(null)
 
   const audioChunksRef = useRef([])
+
+  const fetchHistory = async () => {
+
+    try {
+
+      const response =
+        await axios.get(
+          "http://localhost:5000/upload/transcriptions"
+        )
+
+      setHistory(response.data)
+
+    } catch (error) {
+
+      console.log(error)
+    }
+  }
+
+  useEffect(() => {
+
+    fetchHistory()
+
+  }, [])
 
   const startRecording = async () => {
 
@@ -111,6 +142,8 @@ function UploadAudio() {
         response.data.transcription
       )
 
+      fetchHistory()
+
     } catch (error) {
 
       console.log(error)
@@ -126,7 +159,7 @@ function UploadAudio() {
 
   return (
 
-    <div className="bg-white p-8 rounded-2xl shadow-lg w-[450px] flex flex-col gap-5">
+    <div className="bg-white/90 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full flex flex-col gap-6 border border-gray-200">
 
       <input
         type="file"
@@ -134,17 +167,17 @@ function UploadAudio() {
         onChange={(e) =>
           setAudio(e.target.files[0])
         }
-        className="border p-2 rounded"
+        className="border-2 border-dashed border-blue-400 p-4 rounded-xl bg-blue-50 cursor-pointer"
       />
 
-      <div className="flex gap-3">
+      <div className="flex gap-3 flex-wrap">
 
         {
           !recording ? (
 
             <button
               onClick={startRecording}
-              className="bg-green-600 text-white px-4 py-2 rounded"
+              className="bg-green-600 hover:bg-green-700 transition-all duration-300 text-white px-5 py-3 rounded-xl shadow-md"
             >
               Start Recording
             </button>
@@ -153,7 +186,7 @@ function UploadAudio() {
 
             <button
               onClick={stopRecording}
-              className="bg-red-600 text-white px-4 py-2 rounded"
+              className="bg-red-600 hover:bg-red-700 transition-all duration-300 text-white px-5 py-3 rounded-xl shadow-md"
             >
               Stop Recording
             </button>
@@ -162,9 +195,20 @@ function UploadAudio() {
 
         <button
           onClick={handleUpload}
-          className="bg-blue-600 text-white px-4 py-2 rounded"
+          disabled={loading}
+          className={`px-5 py-3 rounded-xl text-white shadow-md transition-all duration-300 ${
+            loading
+              ? "bg-gray-400"
+              : "bg-blue-600 hover:bg-blue-700"
+          }`}
         >
-          Upload Audio
+
+          {
+            loading
+              ? "Uploading..."
+              : "Upload Audio"
+          }
+
         </button>
 
       </div>
@@ -172,7 +216,7 @@ function UploadAudio() {
       {
         loading && (
 
-          <p className="text-blue-600 font-bold">
+          <p className="text-blue-600 font-bold text-lg animate-pulse">
             Generating transcription...
           </p>
         )
@@ -181,17 +225,47 @@ function UploadAudio() {
       {
         transcription && (
 
-          <div className="bg-gray-100 p-4 rounded">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-5 rounded-2xl shadow-md border border-blue-200">
 
-            <h2 className="font-bold mb-2">
+            <h2 className="font-bold text-xl mb-3 text-blue-700">
               Transcription
             </h2>
 
-            <p>{transcription}</p>
+            <p className="text-gray-700 leading-relaxed">
+              {transcription}
+            </p>
 
           </div>
         )
       }
+
+      <div>
+
+        <h2 className="text-2xl font-bold text-purple-700">
+          Previous Transcriptions
+        </h2>
+
+        <div className="flex flex-col gap-3 mt-4">
+
+          {
+            history.map((item) => (
+
+              <div
+                key={item._id}
+                className="bg-white shadow-md border border-gray-200 p-4 rounded-2xl hover:scale-[1.02] transition-all duration-300"
+              >
+
+                <p className="text-gray-700">
+                  {item.transcription}
+                </p>
+
+              </div>
+            ))
+          }
+
+        </div>
+
+      </div>
 
     </div>
   )

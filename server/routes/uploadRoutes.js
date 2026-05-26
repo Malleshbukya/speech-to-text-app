@@ -30,7 +30,33 @@ const storage = multer.diskStorage({
 
 })
 
-const upload = multer({ storage: storage })
+const upload = multer({
+
+  storage: storage,
+
+  limits: {
+    fileSize: 10 * 1024 * 1024,
+  },
+
+  fileFilter: (req, file, cb) => {
+
+    if (
+      file.mimetype.startsWith("audio/")
+    ) {
+
+      cb(null, true)
+
+    } else {
+
+      cb(
+        new Error(
+          "Only audio files are allowed"
+        ),
+        false
+      )
+    }
+  },
+})
 
 router.post(
   "/",
@@ -58,6 +84,14 @@ router.post(
         .alternatives[0]
         .transcript
 
+      if (!transcription) {
+
+        return res.status(400).json({
+          message:
+            "No speech detected in audio",
+        })
+      }
+
       const savedData =
         await Transcription.create({
 
@@ -74,7 +108,10 @@ router.post(
       console.log(error)
 
       res.status(500).json({
-        message: "Transcription failed",
+
+        message:
+          error.message ||
+          "Transcription failed",
       })
     }
   }

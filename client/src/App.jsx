@@ -1,22 +1,24 @@
-import UploadAudio from "./components/UploadAudio"
+import UploadAudio
+from "./components/UploadAudio"
+
+import Auth
+from "./components/Auth"
 
 function App() {
 
   return (
 
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-200 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 to-purple-200 flex flex-col items-center justify-center gap-10 p-6">
 
-      <div className="w-full max-w-3xl">
+      <h1 className="text-5xl font-extrabold text-blue-700">
 
-        <h1 className="text-5xl font-extrabold text-center text-blue-700 mb-10 drop-shadow-md">
+        AI Speech To Text
 
-          AI Speech To Text
+      </h1>
 
-        </h1>
+      <Auth />
 
-        <UploadAudio />
-
-      </div>
+      <UploadAudio />
 
     </div>
   )

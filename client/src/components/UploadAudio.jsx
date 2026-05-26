@@ -148,7 +148,10 @@ function UploadAudio() {
 
       console.log(error)
 
-      alert("Upload failed")
+      alert(
+        error.response?.data?.message ||
+        "Upload failed"
+      )
     }
 
     finally {
@@ -164,9 +167,39 @@ function UploadAudio() {
       <input
         type="file"
         accept="audio/*"
-        onChange={(e) =>
-          setAudio(e.target.files[0])
-        }
+
+        onChange={(e) => {
+
+          const file = e.target.files[0]
+
+          if (!file) return
+
+          if (
+            !file.type.startsWith("audio/")
+          ) {
+
+            alert(
+              "Please upload audio files only"
+            )
+
+            return
+          }
+
+          if (
+            file.size >
+            10 * 1024 * 1024
+          ) {
+
+            alert(
+              "File size must be below 10MB"
+            )
+
+            return
+          }
+
+          setAudio(file)
+        }}
+
         className="border-2 border-dashed border-blue-400 p-4 rounded-xl bg-blue-50 cursor-pointer"
       />
 
@@ -195,7 +228,9 @@ function UploadAudio() {
 
         <button
           onClick={handleUpload}
+
           disabled={loading}
+
           className={`px-5 py-3 rounded-xl text-white shadow-md transition-all duration-300 ${
             loading
               ? "bg-gray-400"

@@ -6,33 +6,74 @@ import {
 
 import axios from "axios"
 
+import supabase
+from "../supabase/supabaseClient"
+
+import { io }
+from "socket.io-client"
+
+const socket =
+  io("http://localhost:5000")
+
 function UploadAudio() {
 
-  const [audio, setAudio] = useState(null)
+  const [uploadAudio,
+    setUploadAudio] =
+    useState(null)
 
-  const [transcription, setTranscription] =
+  const [recordedAudio,
+    setRecordedAudio] =
+    useState(null)
+
+  const [transcription,
+    setTranscription] =
     useState("")
 
-  const [history, setHistory] =
+  const [history,
+    setHistory] =
     useState([])
 
-  const [loading, setLoading] =
+  const [showHistory,
+    setShowHistory] =
     useState(false)
 
-  const [recording, setRecording] =
+  const [loading,
+    setLoading] =
     useState(false)
 
-  const mediaRecorderRef = useRef(null)
+  const [recording,
+    setRecording] =
+    useState(false)
 
-  const audioChunksRef = useRef([])
+  const [liveText,
+    setLiveText] =
+    useState("")
 
-  const fetchHistory = async () => {
+  const mediaRecorderRef =
+    useRef(null)
+
+  const audioChunksRef =
+    useRef([])
+
+  const timeoutRef =
+    useRef(null)
+
+  const fetchHistory =
+    async () => {
 
     try {
 
+      const {
+        data: { user }
+      } =
+        await supabase.auth.getUser()
+
+      if (!user) return
+
       const response =
         await axios.get(
-          "http://localhost:5000/upload/transcriptions"
+
+          `http://localhost:5000/upload/transcriptions/${user.email}`
         )
 
       setHistory(response.data)
@@ -45,11 +86,42 @@ function UploadAudio() {
 
   useEffect(() => {
 
-    fetchHistory()
+    socket.on(
+      "live-transcription",
+
+      (text) => {
+
+        if (
+          text.trim() !== ""
+        ) {
+
+          setLiveText(text)
+
+          clearTimeout(
+            timeoutRef.current
+          )
+
+          timeoutRef.current =
+            setTimeout(() => {
+
+              setLiveText("")
+
+            }, 2000)
+        }
+      }
+    )
+
+    return () => {
+
+      socket.off(
+        "live-transcription"
+      )
+    }
 
   }, [])
 
-  const startRecording = async () => {
+  const startRecording =
+    async () => {
 
     try {
 
@@ -61,86 +133,127 @@ function UploadAudio() {
       const mediaRecorder =
         new MediaRecorder(stream)
 
-      mediaRecorderRef.current = mediaRecorder
+      mediaRecorderRef.current =
+        mediaRecorder
 
-      mediaRecorder.start()
+      mediaRecorder.start(250)
 
       setRecording(true)
 
       audioChunksRef.current = []
 
-      mediaRecorder.ondataavailable = (event) => {
+      mediaRecorder.ondataavailable =
+        (event) => {
 
         if (event.data.size > 0) {
 
-          audioChunksRef.current.push(event.data)
+          audioChunksRef.current.push(
+            event.data
+          )
+
+          socket.emit(
+            "audio-stream",
+            event.data
+          )
         }
       }
 
       mediaRecorder.onstop = () => {
 
-        const audioBlob = new Blob(
-          audioChunksRef.current,
-          {
-            type: "audio/webm",
-          }
+        const audioBlob =
+          new Blob(
+            audioChunksRef.current,
+            {
+              type: "audio/webm",
+            }
+          )
+
+        const audioFile =
+          new File(
+            [audioBlob],
+            "recording.webm",
+            {
+              type: "audio/webm",
+            }
+          )
+
+        setRecordedAudio(
+          audioFile
         )
 
-        const audioFile = new File(
-          [audioBlob],
-          "recording.webm",
-          {
-            type: "audio/webm",
-          }
-        )
-
-        setAudio(audioFile)
-
-        console.log(audioFile)
+        setRecording(false)
       }
 
     } catch (error) {
 
       console.log(error)
 
-      alert("Microphone access denied")
+      alert(
+        "Microphone access denied"
+      )
     }
   }
 
   const stopRecording = () => {
 
     mediaRecorderRef.current.stop()
-
-    setRecording(false)
   }
 
-  const handleUpload = async () => {
+  const handleUpload =
+    async () => {
 
-    if (!audio) {
+    if (
+      !uploadAudio &&
+      !recordedAudio
+    ) {
 
-      alert("Please select or record audio")
+      alert(
+        "Please select or record audio"
+      )
 
       return
     }
 
-    const formData = new FormData()
+    const {
+      data: { user }
+    } =
+      await supabase.auth.getUser()
 
-    formData.append("audio", audio)
+    const formData =
+      new FormData()
+
+    formData.append(
+
+      "audio",
+
+      uploadAudio ||
+      recordedAudio
+    )
+
+    formData.append(
+      "userEmail",
+      user.email
+    )
 
     try {
 
       setLoading(true)
 
-      const response = await axios.post(
-        "http://localhost:5000/upload",
-        formData
-      )
+      setTranscription("")
 
-      console.log(response.data)
+      const response =
+        await axios.post(
+          "http://localhost:5000/upload",
+          formData
+        )
 
       setTranscription(
         response.data.transcription
       )
+
+      setUploadAudio(null)
+
+      setRecordedAudio(null)
 
       fetchHistory()
 
@@ -152,9 +265,8 @@ function UploadAudio() {
         error.response?.data?.message ||
         "Upload failed"
       )
-    }
 
-    finally {
+    } finally {
 
       setLoading(false)
     }
@@ -162,100 +274,140 @@ function UploadAudio() {
 
   return (
 
-    <div className="bg-white/90 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full flex flex-col gap-6 border border-gray-200">
+    <div className="bg-white/90 backdrop-blur-md p-8 rounded-3xl shadow-2xl w-full flex flex-col gap-8 border border-gray-200">
 
-      <input
-        type="file"
-        accept="audio/*"
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
 
-        onChange={(e) => {
+        {/* Upload Section */}
 
-          const file = e.target.files[0]
+        <div className="bg-blue-50 p-5 rounded-2xl shadow-md flex flex-col gap-4">
 
-          if (!file) return
+          <h2 className="text-xl font-bold text-blue-700">
 
-          if (
-            !file.type.startsWith("audio/")
-          ) {
+            Upload Audio
 
-            alert(
-              "Please upload audio files only"
-            )
+          </h2>
 
-            return
-          }
+          <input
+            type="file"
+            accept="audio/*"
 
-          if (
-            file.size >
-            10 * 1024 * 1024
-          ) {
+            onChange={(e) => {
 
-            alert(
-              "File size must be below 10MB"
-            )
+              const file =
+                e.target.files[0]
 
-            return
-          }
+              if (!file) return
 
-          setAudio(file)
-        }}
+              setUploadAudio(file)
+            }}
 
-        className="border-2 border-dashed border-blue-400 p-4 rounded-xl bg-blue-50 cursor-pointer"
-      />
+            className="border p-3 rounded-xl bg-white"
+          />
 
-      <div className="flex gap-3 flex-wrap">
+          <button
+            onClick={handleUpload}
 
-        {
-          !recording ? (
+            disabled={loading}
 
-            <button
-              onClick={startRecording}
-              className="bg-green-600 hover:bg-green-700 transition-all duration-300 text-white px-5 py-3 rounded-xl shadow-md"
-            >
-              Start Recording
-            </button>
+            className={`text-white p-3 rounded-xl ${
+              loading
+                ? "bg-gray-400"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
+          >
 
-          ) : (
+            {
+              loading
+                ? "Uploading..."
+                : "Upload"
+            }
 
-            <button
-              onClick={stopRecording}
-              className="bg-red-600 hover:bg-red-700 transition-all duration-300 text-white px-5 py-3 rounded-xl shadow-md"
-            >
-              Stop Recording
-            </button>
-          )
-        }
+          </button>
 
-        <button
-          onClick={handleUpload}
+        </div>
 
-          disabled={loading}
+        {/* Recording Section */}
 
-          className={`px-5 py-3 rounded-xl text-white shadow-md transition-all duration-300 ${
-            loading
-              ? "bg-gray-400"
-              : "bg-blue-600 hover:bg-blue-700"
-          }`}
-        >
+        <div className="bg-green-50 p-5 rounded-2xl shadow-md flex flex-col gap-4">
+
+          <h2 className="text-xl font-bold text-green-700">
+
+            Recording
+
+          </h2>
 
           {
-            loading
-              ? "Uploading..."
-              : "Upload Audio"
+            !recording ? (
+
+              <button
+                onClick={startRecording}
+
+                className="bg-green-600 hover:bg-green-700 text-white p-3 rounded-xl"
+              >
+
+                Start Recording
+
+              </button>
+
+            ) : (
+
+              <button
+                onClick={stopRecording}
+
+                className="bg-red-600 hover:bg-red-700 text-white p-3 rounded-xl"
+              >
+
+                Stop Recording
+
+              </button>
+            )
           }
 
-        </button>
+          {
+            recordedAudio && (
+
+              <p className="text-green-700 font-semibold">
+
+                ✅ Recording Ready
+
+              </p>
+            )
+          }
+
+        </div>
+
+        {/* Live Speech Section */}
+
+        <div className="bg-yellow-50 p-5 rounded-2xl shadow-md flex flex-col gap-4">
+
+          <h2 className="text-xl font-bold text-yellow-700">
+
+            Live Speech To Text
+
+          </h2>
+
+          <div className="bg-white rounded-xl p-4 min-h-[120px] border">
+
+            <p className="text-gray-700">
+
+              {
+                liveText ||
+
+                (
+                  recording
+                  ? "🟢 Listening..."
+                  : "Start speaking..."
+                )
+              }
+
+            </p>
+
+          </div>
+
+        </div>
 
       </div>
-
-      {
-        loading && (
-
-          <p className="text-blue-600 font-bold text-lg animate-pulse">
-            Generating transcription...
-          </p>
-        )
-      }
 
       {
         transcription && (
@@ -263,44 +415,84 @@ function UploadAudio() {
           <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-5 rounded-2xl shadow-md border border-blue-200">
 
             <h2 className="font-bold text-xl mb-3 text-blue-700">
+
               Transcription
+
             </h2>
 
             <p className="text-gray-700 leading-relaxed">
+
               {transcription}
+
             </p>
 
           </div>
         )
       }
 
-      <div>
+      <button
+        onClick={async () => {
 
-        <h2 className="text-2xl font-bold text-purple-700">
-          Previous Transcriptions
-        </h2>
+          if (!showHistory) {
 
-        <div className="flex flex-col gap-3 mt-4">
-
-          {
-            history.map((item) => (
-
-              <div
-                key={item._id}
-                className="bg-white shadow-md border border-gray-200 p-4 rounded-2xl hover:scale-[1.02] transition-all duration-300"
-              >
-
-                <p className="text-gray-700">
-                  {item.transcription}
-                </p>
-
-              </div>
-            ))
+            await fetchHistory()
           }
 
-        </div>
+          setShowHistory(
+            !showHistory
+          )
+        }}
 
-      </div>
+        className="bg-purple-600 hover:bg-purple-700 text-white p-3 rounded-xl"
+      >
+
+        {
+          showHistory
+            ? "Hide History"
+            : "Show History"
+        }
+
+      </button>
+
+      {
+        showHistory && (
+
+          <div>
+
+            <h2 className="text-2xl font-bold text-purple-700">
+
+              Previous Transcriptions
+
+            </h2>
+
+            <div className="flex flex-col gap-3 mt-4">
+
+              {
+                history.map((item) => (
+
+                  <div
+                    key={item._id}
+
+                    className="bg-white shadow-md border border-gray-200 p-4 rounded-2xl"
+                  >
+
+                    <p className="text-gray-700">
+
+                      {
+                        item.transcription
+                      }
+
+                    </p>
+
+                  </div>
+                ))
+              }
+
+            </div>
+
+          </div>
+        )
+      }
 
     </div>
   )

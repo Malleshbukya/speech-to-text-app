@@ -1,6 +1,7 @@
 import { useState } from "react"
 
-import supabase from "../supabase/supabaseClient"
+import supabase
+from "../supabase/supabaseClient"
 
 function Auth() {
 
@@ -13,7 +14,22 @@ function Auth() {
   const [loading, setLoading] =
     useState(false)
 
+  const [message, setMessage] =
+    useState("")
+
+  const [errorMsg, setErrorMsg] =
+    useState("")
+
   const handleSignup = async () => {
+
+    if (!email || !password) {
+
+      setErrorMsg(
+        "Please fill all fields"
+      )
+
+      return
+    }
 
     try {
 
@@ -29,13 +45,17 @@ function Auth() {
 
       if (error) {
 
-        alert(error.message)
+        setErrorMsg(error.message)
+
+        setMessage("")
 
       } else {
 
-        alert(
-          "Signup successful. Check email."
+        setMessage(
+          "Signup successful"
         )
+
+        setErrorMsg("")
       }
 
     } catch (error) {
@@ -49,6 +69,15 @@ function Auth() {
   }
 
   const handleLogin = async () => {
+
+    if (!email || !password) {
+
+      setErrorMsg(
+        "Please fill all fields"
+      )
+
+      return
+    }
 
     try {
 
@@ -64,11 +93,19 @@ function Auth() {
 
       if (error) {
 
-        alert(error.message)
+        setErrorMsg(
+          "Invalid email or password"
+        )
+
+        setMessage("")
 
       } else {
 
-        alert("Login successful")
+        setMessage(
+          "Login successful"
+        )
+
+        setErrorMsg("")
       }
 
     } catch (error) {
@@ -140,6 +177,28 @@ function Auth() {
         }
 
       </button>
+
+      {
+        message && (
+
+          <p className="text-green-600 font-bold text-center">
+
+            {message}
+
+          </p>
+        )
+      }
+
+      {
+        errorMsg && (
+
+          <p className="text-red-600 font-bold text-center">
+
+            {errorMsg}
+
+          </p>
+        )
+      }
 
     </div>
   )

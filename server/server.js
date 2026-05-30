@@ -22,7 +22,15 @@ const app = express()
 
 connectDB()
 
-app.use(cors())
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://speech-to-text-app-rho.vercel.app",
+    ],
+    credentials: true,
+  })
+)
 
 app.use(express.json())
 
@@ -36,12 +44,20 @@ app.get("/", (req, res) => {
 const server =
   http.createServer(app)
 
-const io = new Server(server, {
 
+const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: [
+      "http://localhost:5173",
+      "https://speech-to-text-app-rho.vercel.app",
+    ],
+    methods: ["GET", "POST"],
+    credentials: true,
   },
 })
+
+
+
 
 io.on("connection", (socket) => {
 

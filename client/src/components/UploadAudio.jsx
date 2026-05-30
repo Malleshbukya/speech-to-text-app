@@ -13,7 +13,11 @@ import { io }
 from "socket.io-client"
 
 const socket =
-  io("http://localhost:5000")
+  io(
+
+        "https://speech-to-text-backend-olgj.onrender.com"
+
+  )
 
 function UploadAudio() {
 
@@ -72,8 +76,9 @@ function UploadAudio() {
 
       const response =
         await axios.get(
+              `https://speech-to-text-backend-olgj.onrender.com/upload/transcriptions/${user.email}`
 
-          `http://localhost:5000/upload/transcriptions/${user.email}`
+
         )
 
       setHistory(response.data)
@@ -84,51 +89,64 @@ function UploadAudio() {
     }
   }
 
-  useEffect(() => {
+useEffect(() => {
 
-    socket.on(
-  "live-transcription",
+  socket.on("connect", () => {
+    console.log("✅ Socket Connected")
+  })
 
-  (text) => {
+  socket.on("disconnect", () => {
+    console.log("❌ Socket Disconnected")
+  })
 
-    console.log(
-      "Frontend received:",
-      text
-    )
+  socket.on("connect_error", (err) => {
+    console.log("🚨 Socket Error:", err)
+  })
 
-    if (
-      text &&
-      text.trim() !== ""
-    ) {
+  socket.on(
+    "live-transcription",
 
-      setLiveText(text)
+    (text) => {
 
-      clearTimeout(
-        timeoutRef.current
+      console.log(
+        "Frontend received:",
+        text
       )
 
-      timeoutRef.current =
-        setTimeout(() => {
+      if (
+        text &&
+        text.trim() !== ""
+      ) {
 
-          setLiveText("")
+        setLiveText(text)
 
-        }, 2000)
+        clearTimeout(
+          timeoutRef.current
+        )
+
+        timeoutRef.current =
+          setTimeout(() => {
+
+            setLiveText("")
+
+          }, 2000)
+      }
     }
+  )
+
+  return () => {
+
+    socket.off("connect")
+    socket.off("disconnect")
+    socket.off("connect_error")
+    socket.off("live-transcription")
   }
-)
+
+}, [])
+
+  
 
 
-
-
-
-    return () => {
-
-      socket.off(
-        "live-transcription"
-      )
-    }
-
-  }, [])
 
   const startRecording =
     async () => {
@@ -152,21 +170,31 @@ function UploadAudio() {
 
       audioChunksRef.current = []
 
-      mediaRecorder.ondataavailable =
-        (event) => {
 
-        if (event.data.size > 0) {
+    mediaRecorder.ondataavailable =
+  (event) => {
 
-          audioChunksRef.current.push(
-            event.data
-          )
+    if (event.data.size > 0) {
 
-          socket.emit(
-            "audio-stream",
-            event.data
-          )
-        }
-      }
+      console.log(
+        "Sending audio chunk:",
+        event.data.size
+      )
+
+      audioChunksRef.current.push(
+        event.data
+      )
+
+      socket.emit(
+        "audio-stream",
+        event.data
+      )
+    }
+  }
+
+
+
+
 
       mediaRecorder.onstop = () => {
 
@@ -253,7 +281,8 @@ function UploadAudio() {
 
       const response =
         await axios.post(
-          "http://localhost:5000/upload",
+            "https://speech-to-text-backend-olgj.onrender.com/upload",
+
           formData
         )
 

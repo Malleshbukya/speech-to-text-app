@@ -68,26 +68,41 @@ io.on("connection", (socket) => {
     )
 
     socket.on(
-      "audio-stream",
-      (audioChunk) => {
+  "audio-stream",
+  (audioChunk) => {
 
-        if (
-          deepgramSocket.readyState ===
-          WebSocket.OPEN
-        ) {
-
-          deepgramSocket.send(audioChunk)
-        }
-      }
+    console.log(
+      "Audio received"
     )
-  })
 
-  deepgramSocket.on(
-    "message",
-    (message) => {
+    if (
+      deepgramSocket.readyState ===
+      WebSocket.OPEN
+    ) {
+
+      deepgramSocket.send(
+        audioChunk
+      )
+    }
+  }
+)
+
+
+deepgramSocket.on(
+  "message",
+  (message) => {
+
+    try {
 
       const data =
-        JSON.parse(message)
+        JSON.parse(
+          message.toString()
+        )
+
+      console.log(
+        "Deepgram Data:",
+        data
+      )
 
       const transcript =
         data.channel
@@ -99,13 +114,31 @@ io.on("connection", (socket) => {
         transcript.trim() !== ""
       ) {
 
+        console.log(
+          "Sending:",
+          transcript
+        )
+
         socket.emit(
           "live-transcription",
           transcript
         )
       }
+
+    } catch (error) {
+
+      console.log(
+        "Parse Error:",
+        error
+      )
     }
-  )
+  }
+)
+  })
+  
+
+
+
 
   deepgramSocket.on(
     "error",

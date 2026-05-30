@@ -87,29 +87,39 @@ function UploadAudio() {
   useEffect(() => {
 
     socket.on(
-      "live-transcription",
+  "live-transcription",
 
-      (text) => {
+  (text) => {
 
-        if (
-          text.trim() !== ""
-        ) {
-
-          setLiveText(text)
-
-          clearTimeout(
-            timeoutRef.current
-          )
-
-          timeoutRef.current =
-            setTimeout(() => {
-
-              setLiveText("")
-
-            }, 2000)
-        }
-      }
+    console.log(
+      "Frontend received:",
+      text
     )
+
+    if (
+      text &&
+      text.trim() !== ""
+    ) {
+
+      setLiveText(text)
+
+      clearTimeout(
+        timeoutRef.current
+      )
+
+      timeoutRef.current =
+        setTimeout(() => {
+
+          setLiveText("")
+
+        }, 2000)
+    }
+  }
+)
+
+
+
+
 
     return () => {
 
